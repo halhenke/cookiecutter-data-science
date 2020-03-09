@@ -1,0 +1,99 @@
+#!make
+
+
+.DEFAULT_GOAL = help
+LAN_ID=$(shell whoami | cut -d@ -f1 )
+
+
+help:
+	@printf "Usage:\n"
+	@grep -E '^[a-zA-Z_-]+:.*?# .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?# "}; {printf "\033[1;34mmake %-20s\033[0m%s\n", $$1, $$2}'
+
+#.ONESHELL:
+setup:		# Run setup to build default environment
+	@printf "\nSetting up default environment variables.\n"
+	./setup.sh
+
+
+build-stage:
+	@printf "Rebuild docker image.\n"
+	${DC} build
+
+rebuild-stage:
+	@printf "Rebuild docker image.\n"
+	${DC} build --no-cache
+
+up-stage: build-stage
+	@printf "Standing up service.\n"
+	${DC} up -d
+	docker logs -f $$(docker ps -f "name=$(PROJECT_NAME)_app" -q)
+
+down-stage:
+	@printf "Stopping service.\n"
+	@printf "Removing named volumes.\n"
+	${DC} down -v
+
+# Testing stages
+# NOTE: we can change test-config-base arg to dev or test if we want to check
+#       the override yml is working properly.
+# 	e.g.
+#           make dev test-config-base
+test-config-base:		# Test docker-compose.yml config
+	@printf "Testing docker-compose yml config...\n"
+	${DC} config > /dev/null && echo "\033[1;34mPASSED\033[0m\n\n" || echo "\033[1;34mFAILED\033[0m\n\n"
+
+test-config: prod test-config-base
+test-pytest: test		# Run unit tests
+	# TODO separate into frontend/backend tests when they exist
+	@printf "Running unit tests...\n"
+	${DC} run app /bin/bash -c "pytest -v /fraud.motor/tests"
+	${DC} down -v
+
+# Linting with Black
+lint-black:
+	@printf "Checking code style with black...\n"
+	# FIXME: do we want black to automatically lint or is a dry-run preferable?
+	#        If automatic, then probably need to override a few black defaults.
+	${DC} run app /bin/bash -c "pip3 install black && black /fraud.motor"
+	${DC} down -v
+	@printf "\033[1;34mBlack passes!\033[0m\n\n"
+
+
+# Args for production and development
+prod:
+	$(eval PROJECT_NAME=fraudmotor)
+	$(eval DC=docker-compose -f docker-compose.yml -p $(PROJECT_NAME))
+
+dev:
+	$(eval PROJECT_NAME=fraudmotor$(LAN_ID))
+	$(eval DC=docker-compose -f docker-compose.yml -f docker-compose.dev.yml -p $(PROJECT_NAME))
+
+test:
+	# NOTE: hyphens are better than underscores bc older verision of dc drop underscores
+	#       as dc uses underscores to distinguish between names, services etc.
+	$(eval STACK_NAME=fraudmotortest$(LAN_ID))
+	$(eval DC=docker-compose -f docker-compose.yml -p $(STACK_NAME))
+
+# Production docker-compose targets
+build: prod build-stage		# Build docker image with cache
+rebuild: prod rebuild-stage	# Build docker image without cache
+up: prod up-stage		# Stand up fraud service
+down: prod down-stage		# Pull down fraud service
+
+
+# Development (with Jupyter Notebooks) docker-compose targets
+build-dev: dev build-stage	# Build dev (notebook) docker image with cache
+rebuild-dev: dev rebuild-stage	# Build dev (notebook) docker image without cache
+ud: dev up-stage		# Stand up fraud service with notebook
+dd: dev down-stage		# Pull down fraud service with notebook
+jupyter-url: dev			# Get jupyter port and token from running service
+	$(eval PORT := $(shell docker ps -f "name=${PROJECT_NAME}_app" --format '{.Ports}' | grep -o ":[0-9]*"))
+	$(eval TOKEN := $(shell docker logs $$(docker ps -f "name=${PROJECT_NAME}_app" -q) 2>&1 | grep -o "/?token=[a-z0-9]*" | head -1))
+	$(eval HOST:= $(shell uname -n))
+	@printf "\e[42mHost Jupyter notebook url:\033[0m\n"
+	@printf "\t"${HOST}${PORT}${TOKEN}"\n"
+
+
+# Testing and linting
+tests: test-config test-pytest 			# Run standard test suite
+lint: test build-stage lint-black down-stage 	# Run linters
