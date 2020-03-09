@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "cookiecutter-data-science"
+version = "0.1.0"
+description = "{{ cookiecutter.description }}"
+# authors = "{{ cookiecutter.author_names }}"
+author = "{{ cookiecutter.author_name }}"
+
+[tool.poetry.dependencies]
+python = "^3.7"
+pandas = "^1.0.1"
+sklearn = "^0.0"
+numpy = "^1.18.1"
+matplotlib = "^3.2.0"
+seaborn = "^0.10.0"
+altair = "^4.0.1"
+hiplot = "^0.1.7"
+python-dotenv = ">=0.5.1"
+click = "*"
+
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.3.5"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"

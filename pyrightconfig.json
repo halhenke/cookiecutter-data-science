@@ -1,0 +1,35 @@
+{
+  "include": ["src", "model"],
+
+  "exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    "src/experimental",
+    "src/web/node_modules",
+    ".dvc",
+    ".idea",
+    ".mypy_cache",
+    ".pytype",
+    ".ipynb_checkpoints",
+    "src/typestubs"
+  ],
+
+  "ignore": ["src/oldstuff"],
+
+  "venvPath": "/Users/hal/.virtualenvs/fraud.motor",
+  "venv": "fraud.motor",
+
+  "reportTypeshedErrors": false,
+  "reportMissingImports": true,
+  "reportMissingTypeStubs": false,
+
+  "pythonVersion": "3.7",
+  "pythonPlatform": "Darwin",
+
+  "executionEnvironments": [
+    {
+      "root": "src",
+      "extraPaths": ["/Users/hal/code/qbe/fraud.motor/src/tests"]
+    }
+  ]
+}
