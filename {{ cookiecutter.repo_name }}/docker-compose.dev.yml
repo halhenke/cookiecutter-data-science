@@ -1,0 +1,68 @@
+##################################################
+# Instructions
+#
+# You need to ensure that you have environment
+# variables setup properly before you run this
+# compose file.
+#
+# Run `make setup` to set ENV variables
+
+version: "3.3"
+
+services:
+  app:
+    image: ${DNA_REPO}/${IMAGE_NAME}/notebook:${IMAGE_VERSION}
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      args:
+        # mount .src to a folder that ${NOTEBOOK_USER} user owns
+        # for read-write privileges
+        MODULE_PATH: /home/${NOTEBOOK_USER}${PROJECT_PATH}/src
+
+    # override the prod command to the default
+    # docker.python3-datascience command in /usr/bin/
+    command: ["simple.sh"]
+
+    environment:
+      ##################################################
+      # Mountpoints
+      #
+      # override the path variables from docker-compose.yml
+      #
+
+      HOME: /home/${NOTEBOOK_USER}
+      PROJECT_PATH: /home/${NOTEBOOK_USER}${PROJECT_PATH}/src
+      G_DRIVE_PATH: /home/${NOTEBOOK_USER}/g
+
+      ##################################################
+      # Jupyter
+      #
+      NOTEBOOK_USER: ${NOTEBOOK_USER}
+      UID: ${USER_UID}
+      GID: ${USER_GID}
+      JUPYTER_TOKEN: ${JUPYTER_TOKEN}
+
+      ##################################################
+      # Other variables
+      #
+
+      # Microsoft Teams Webhook (override docker-compose.yml
+      # for development)
+      # TEAMS_WEBHOOK: ${TEAMS_WEBHOOK}
+
+    ports:
+      - "${NOTEBOOK_PORTS:-8888}" # host port defaults to 8888
+    volumes:
+      # change the guest mount point root to /home/${NOTEBOOK_USER}
+      - ./:/home/${NOTEBOOK_USER}${PROJECT_PATH}
+      - g_drive:/home/${NOTEBOOK_USER}/g
+      
+volumes:
+  # Fraud Repository
+  g_drive:
+    driver_opts:
+      # set uid/gid to same as root on VMs for write privileges
+      o: "user=${LAN_ID},pass=${QBE_PASSWORD},uid=${G_DRIVE_UID},gid=100"
+      type: "cifs"
+      device: "//10.88.9.28/Data/Transformation/Information & Analytics/Claims Analytics/Fraud Analytics"

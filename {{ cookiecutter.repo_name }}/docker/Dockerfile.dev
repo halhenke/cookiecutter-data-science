@@ -1,0 +1,49 @@
+FROM dna.qbe.com:5000/dna/python3.6-datascience:latest
+LABEL author="Tom Porter <tom.porter@qbe.com>"
+
+# shutuf debconf
+ARG DEBIAN_FRONTEND=noninteractive
+
+# required for python click module
+ENV LC_ALL=C.UTF-8
+ENV LANG=C.UTF-8
+
+##################################################
+# Project specific lines
+#
+
+# Install cmake (required for lightgbm)
+RUN apt-get update \
+        && apt-get install -y --no-install-recommends cmake \
+        && apt-get autoremove -y \
+        && apt-get clean \
+        && rm -rf /usr/local/src/*
+
+COPY requirements.txt .
+RUN pip3 install -r requirements.txt
+
+
+########################################
+# dev specific
+#
+COPY requirements.dev.txt requirements.dev.txt
+RUN pip3 install -r requirements.dev.txt
+
+# TODO: remove nbextension install after
+#       python3.6-datascience image is updated.
+RUN jupyter contrib nbextension install --system
+RUN jupyter nbextension enable codefolding/main --system \
+	&& jupyter nbextension enable spellchecker/main --system \
+	&& jupyter nbextension enable toc2/main --system \
+	&& jupyter nbextension enable collapsible_headings/main --system \
+	&& jupyter nbextension enable freeze/main --system \
+	&& jupyter nbextension enable varInspector/main --system \
+	&& jupyter nbextension enable notify/notify --system
+
+# Create MODULE_PATH directory to store module
+ARG MODULE_PATH
+RUN mkdir -p $MODULE_PATH
+WORKDIR $MODULE_PATH
+
+# export MODULE_PATH to import modules from anywhere
+ENV PYTHONPATH=$PYTHONPATH:$MODULE_PATH

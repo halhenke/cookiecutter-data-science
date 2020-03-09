@@ -1,0 +1,121 @@
+##################################################
+# Instructions 
+#
+# You need to ensure that you have environment
+# variables setup properly before you run this
+# compose file.
+#
+# Run `make setup` to set ENV variables
+
+version: "3.3"
+
+services:
+  app:
+    image: ${DNA_REPO}/${IMAGE_NAME}:${IMAGE_VERSION}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # append MODULE_PATH to PYTHONPATH
+        MODULE_PATH: ${PROJECT_PATH}
+
+    # Enable interactive terminal for QBE password entry to
+    # connect to Evolve
+    stdin_open: true            # interactive
+    tty: true                   # terminal
+
+    # restart: unless-stopped
+    command: ["python3", "-B", "manage.py", "test"]
+
+    environment:
+      ##################################################
+      # Mountpoints
+      #
+
+      PROJECT_PATH: ${PROJECT_PATH}    # ./src
+      G_DRIVE_PATH: ${G_DRIVE_PATH}    # G:\..\Fraud Analytics
+
+      ##################################################
+      # database connections
+      # NOTE: pyodbc_strings need to strip newline char "\n"
+      #       connection strings require urllib.parse.quoteplus
+      #       parsing and appendment to "mssql+pyodbc:///?odbc_driver=".
+
+      DB_USER_PRINCIPAL_DAP: ${DB_USER_PRINCIPAL_DAP}
+      DB_DOMAIN_DAP: AU.QBE.PRI
+      DB_PASSWORD_DAP: ${DB_PASSWORD_DAP}
+  
+      # DAP SIT environment
+      DB_PYODBC_STRING_DAP_SIT: |-
+        DRIVER={ODBC Driver 17 for SQL Server};
+        SERVER=AUSTLSQLWT0028.AU.QBE.PRI\PWRBI_SIT_ANZO,3028;
+        Trusted_Connection=yes;
+        ServerSPN=RestrictedKrbHost/AUSTLSQLWT0028.AU.QBE.PRI;
+
+      # DAP UAT environment
+      DB_PYODBC_STRING_DAP_UAT: |-
+        DRIVER={ODBC Driver 17 for SQL Server};
+        SERVER=AUSTLSQLWU0021.AU.QBE.PRI\PWRBI_UAT_ANZO,51021;
+        Trusted_Connection=yes;
+        ServerSPN=RestrictedKrbHost/AUSTLSQLWU0021.AU.QBE.PRI;
+
+      # Instinct
+      DB_PYODBC_STRING_INSTINCT: |-
+        DRIVER={ODBC Driver 17 for SQL Server};
+        SERVER=AUHBSDSNWP0039.AU.QBE.PRI\INS_PRD_QFRAUD,52039;
+        DATABASE=InstinctQBEINSAU_PRD;
+        Trusted_Connection=yes;
+        ServerSPN=RestrictedKrbHost/AUHBSDSNWP0039.AU.QBE.PRI;
+      DB_USER_PRINCIPAL_INSTINCT: ${DB_USER_PRINCIPAL_INSTINCT}
+      DB_DOMAIN_INSTINCT: AU.QBE.PRI
+      DB_PASSWORD_INSTINCT: ${DB_PASSWORD_INSTINCT}
+
+      # ABS
+      DATABASE_URI_ABS: >-
+        postgresql+psycopg2://readonly:readonly@austlappld0020.qbe.com.au:5432/geodata
+
+      ##################################################
+      # Other variables
+      #
+
+      # Microsoft Teams webhooks
+      # TEAMS_WEBHOOK: ${TEAMS_WEBHOOK}
+
+      # MLFlow
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
+      MLFLOW_S3_ENDPOINT_URL: ${MLFLOW_S3_ENDPOINT_URL}
+
+      AWS_ACCESS_KEY_ID: ${MINIO_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_SECRET_KEY}
+      ##################################################
+      # Other variable
+      #
+      # TODO: add MLFlow credentials after setting up reverse-proxy
+      #       server-side @Tom
+
+      # Microsoft Teams webhooks
+      # TEAMS_WEBHOOK: ${TEAMS_WEBHOOK}
+
+      # MLFlow
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
+      MLFLOW_S3_ENDPOINT_URL: ${MLFLOW_S3_ENDPOINT_URL}
+
+      # minIO
+      # the keys are required for MLflow
+      AWS_ACCESS_KEY_ID: ${MINIO_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_SECRET_KEY}
+      DEFAULT_S3_BUCKET: "fraud.motor"
+
+    volumes:
+      # mount entire directory to access .git commits etc.
+      - g_drive:${G_DRIVE_PATH}
+
+
+volumes:
+  # Fraud Repository
+  g_drive:
+    driver_opts:
+      # set uid/gid to same as root on VMs for write privileges
+      o: "user=${LAN_ID},pass=${QBE_PASSWORD},uid=909090,gid=909090"
+      type: "cifs"
+      device: "//10.88.9.28/Data/Transformation/Information & Analytics/Claims Analytics/Fraud Analytics"

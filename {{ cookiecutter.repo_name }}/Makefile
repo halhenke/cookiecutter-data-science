@@ -9,11 +9,24 @@ BUCKET = {{ cookiecutter.s3_bucket }}
 PROFILE = {{ cookiecutter.aws_profile }}
 PROJECT_NAME = {{ cookiecutter.repo_name }}
 PYTHON_INTERPRETER = {{ cookiecutter.python_interpreter }}
+# DESIRED_PYTHON_VERSION = {{ cookiecutter.desired_python_version }}
+
+# ifeq (DESIRED_PYTHON_VERSION, $(shell python --version))
+# HAS_DESIRED_PYTHON_VERSION=False
+# else
+# HAS_DESIRED_PYTHON_VERSION=True
+# endif
 
 ifeq (,$(shell which conda))
 HAS_CONDA=False
 else
 HAS_CONDA=True
+endif
+
+ifeq (,$(shell which poetry))
+HAS_POETRY=False
+else
+HAS_POETRY=True
 endif
 
 #################################################################################
@@ -52,6 +65,40 @@ ifeq (default,$(PROFILE))
 	aws s3 sync s3://$(BUCKET)/data/ data/
 else
 	aws s3 sync s3://$(BUCKET)/data/ data/ --profile $(PROFILE)
+endif
+
+poetry_setup:
+ifeq (True,$(HAS_POETRY))
+		@echo ">>> Detected poetry, creating poetry environment."
+
+ifeq (True, $(HAS_DESIRED_PYTHON_VERSION))
+		@echo ">>> Found preferred Python version $(DESIRED_PYTHON_VERSION) -- will proceed."
+		python use python$(DESIRED_PYTHON_VERSION)
+else
+	@echo ">>> Cant find the specified python interpreter - version $(DESIRED_PYTHON_VERSION). Will exit now."
+	@echo ">>> Either specify the path or remove the desired_python_version variable"
+	# TODO Either
+	# - prompt if they should continue with other version
+	# - break somehow....
+endif
+
+# TODO - Fix this
+# ifeq (3,$(findstring 3,$(PYTHON_INTERPRETER)))
+# 	# conda create --name $(PROJECT_NAME) python=3
+# 	ifeq (3,$(findstring 3,$(PYTHON_INTERPRETER)))
+# else
+# 	@echo ">>> Cant find a python3 interpreter."
+# 	# TODO
+# 	# break/return here somehow
+# endif
+
+		@echo ">>> New poetry env created. Activate with:\n'poetry shell'"
+else
+	# $(PYTHON_INTERPRETER) -m pip install -q virtualenv virtualenvwrapper
+	# @echo ">>> Installing virtualenvwrapper if not already installed.\nMake sure the following lines are in shell startup file\n\
+	# export WORKON_HOME=$$HOME/.virtualenvs\nexport PROJECT_HOME=$$HOME/Devel\nsource /usr/local/bin/virtualenvwrapper.sh\n"
+	# @bash -c "source `which virtualenvwrapper.sh`;mkvirtualenv $(PROJECT_NAME) --python=$(PYTHON_INTERPRETER)"
+	# @echo ">>> New virtualenv created. Activate with:\nworkon $(PROJECT_NAME)"
 endif
 
 ## Set up python interpreter environment
